@@ -52,6 +52,10 @@ class Trainer:
         self.optim = optim
         optim.net = net
 
+    def generate_batch(self, X: ndarray, Y: ndarray, size: int) -> tuple[ndarray, ndarray]:
+        for i in range(0, X.shape[0], size):
+            yield X[i:i+size], Y[i:i+size]
+
     def fit(self,
             X_train: ndarray, y_train: ndarray,
             X_test: ndarray, y_test: ndarray,
@@ -63,16 +67,12 @@ class Trainer:
             for layer in self.net.layers:
                 layer.first = True
         for e in range(epochs):
-            # train
-            index = list(range(X_train.shape[0]))
-            numpy.random.shuffle(index)
-            for row in index:
-                self.net.train_batch(X_train[row:row+1], y_train[row:row+1])
-                self.optim.step()
             if e % eval_every == 0:  # eval
-                eval = 0
-                for r in range(X_test.shape[0]):
-                    eval += self.net.loss.forward(
-                        self.net.forward(X_test[r:r+1]), y_test[r:r+1])
+                eval = self.net.loss.forward(self.net.forward(X_test), y_test)
                 print("After %d epochs, loss validation is: %f" %
                       (e, eval/X_test.shape[0]))
+            # train
+            # np.random.shuffle()
+            for x_batch, y_batch in self.generate_batch(X_train, y_train, batch_size):
+                self.net.train_batch(x_batch, y_batch)
+                self.optim.step()

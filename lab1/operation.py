@@ -58,10 +58,10 @@ class BiasAdd(ParamOperation):
         super().__init__(B)
 
     def _output(self) -> ndarray:
-        return self.input + self.param
+        return self.input + np.dot(np.ones((self.input.shape[0], 1)), self.param)
 
     def _input_grad(self, output_grad: ndarray) -> ndarray:
         return output_grad
 
     def _param_grad(self, output_grad: ndarray) -> ndarray:
-        return output_grad
+        return np.dot(np.ones((1, self.input.shape[0])), output_grad)
