@@ -1,28 +1,27 @@
-import time
 import numpy as np
 from numpy import ndarray
-from operation import Operation, ParamOperation, Sigmod, BiasAdd, WeightMultiply
+from util import assert_same_shape
+from operation import Operation, ParamOperation, BiasAdd, WeightMultiply
 
 
 class Layer(object):
     def __init__(self, neurons: int,
-                 activation: Operation = Sigmod(), seed=int(time.time())):
+                 activation: Operation):
         self.neurons = neurons
         self.activation = activation
-        self.seed = seed
         self.first = True
         self.params: list[ndarray] = []
         self.param_grads: list[ndarray] = []
         self.operations: list[Operation] = []
 
     def _setup_layer(self, input: ndarray):
-        np.random.seed(self.seed)
+        if self.seed:
+            np.random.seed(self.seed)
         self.params = []
         # weight multiply operation
-        self.params.append(np.random.standard_cauchy(
-            (input.shape[1], self.neurons))/self.neurons)
+        self.params.append(np.random.randn(input.shape[1], self.neurons))
         # bias add operation
-        self.params.append(-np.abs(np.random.standard_cauchy((1, self.neurons))))
+        self.params.append(np.random.randn(1, self.neurons))
         self.operations = [
             WeightMultiply(self.params[0]),
             BiasAdd(self.params[1]),
@@ -39,18 +38,19 @@ class Layer(object):
         return self.output
 
     def backward(self, output_grad: ndarray) -> ndarray:
+        assert_same_shape(self.output, output_grad)
         for operation in reversed(self.operations):
             output_grad = operation.backward(output_grad)
         self._param_grads()
         return output_grad
 
-    def _param_grads(self) -> ndarray:
+    def _param_grads(self):
         self.param_grads = []
         for operation in self.operations:
             if issubclass(operation.__class__, ParamOperation):
                 self.param_grads.append(operation.param_grad)
 
-    def _params(self) -> ndarray:
+    def _params(self):
         self.params = []
         for operation in self.operations:
             if issubclass(operation.__class__, ParamOperation):

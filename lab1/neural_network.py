@@ -1,15 +1,17 @@
 from numpy import ndarray
 import numpy as np
-import numpy
-from numpy.random.mtrand import shuffle
 from loss import Loss
 from layer import Layer
 
 
 class NeuralNetwork:
-    def __init__(self, layers: list[Layer], loss: Loss = Loss()):
+    def __init__(self, layers: list[Layer], loss: Loss, seed: int = 1):
         self.layers = layers
         self.loss = loss
+        self.seed = seed
+        if seed:
+            for layer in self.layers:
+                setattr(layer, "seed", self.seed)
 
     def forward(self, x_batch: ndarray) -> ndarray:
         for layer in self.layers:
@@ -50,29 +52,41 @@ class Trainer:
     def __init__(self, net: NeuralNetwork, optim: Optimizer):
         self.net = net
         self.optim = optim
-        optim.net = net
+        setattr(self.optim, 'net', self.net)
 
-    def generate_batch(self, X: ndarray, Y: ndarray, size: int) -> tuple[ndarray, ndarray]:
+    def generate_batch(self, X: ndarray, y: ndarray, size: int = 32) -> tuple[ndarray, ndarray]:
+        assert X.shape[0] == y.shape[0], \
+            '''
+        features and target must have the same number of rows, instead
+        features has {0} and target has {1}
+        '''.format(X.shape[0], y.shape[0])
         for i in range(0, X.shape[0], size):
-            yield X[i:i+size], Y[i:i+size]
+            X_batch, y_batch = X[i:i+size], y[i:i+size]
+            yield X_batch, y_batch
+
+    def shuffle_batch(self, X: ndarray, y: ndarray) -> tuple[ndarray, ndarray]:
+        perm = np.random.permutation(X.shape[0])
+        return X[perm], y[perm]
 
     def fit(self,
             X_train: ndarray, y_train: ndarray,
             X_test: ndarray, y_test: ndarray,
-            epochs: int = 10000,
+            epochs: int = 100,
             eval_every: int = 10,
             batch_size: int = 32,
+            seed: int = 1,
             restart: bool = True):
+        np.random.seed(seed)
         if restart:
             for layer in self.net.layers:
                 layer.first = True
         for e in range(epochs):
-            if e % eval_every == 0:  # eval
-                eval = self.net.loss.forward(self.net.forward(X_test), y_test)
-                print("After %d epochs, loss validation is: %f" %
-                      (e, eval/X_test.shape[0]))
+            if (e+1) % eval_every == 0:  # eval
+                test_preds = self.net.forward(X_test)
+                loss = self.net.loss.forward(test_preds, y_test)
+                print(f"After {e+1} epochs, loss validation is: {loss}")
             # train
-            # np.random.shuffle()
-            for x_batch, y_batch in self.generate_batch(X_train, y_train, batch_size):
-                self.net.train_batch(x_batch, y_batch)
+            X_train, y_train = self.shuffle_batch(X_train, y_train)
+            for X_batch, y_batch in self.generate_batch(X_train, y_train, batch_size):
+                self.net.train_batch(X_batch, y_batch)
                 self.optim.step()
