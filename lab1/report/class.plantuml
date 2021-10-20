@@ -1,0 +1,68 @@
+@startuml clazz
+package neural_network.py{
+	class Trainer{
+		learning_rate
+		fit()
+	}
+	class NeuralNetwork{
+		layers
+		forward()
+		backward()
+	}
+	class Optimizer{
+		step()
+	}
+	Trainer *-- NeuralNetwork
+	Trainer *-- Optimizer
+}
+
+package loss.py{
+	abstract class Loss{
+		forward()
+		backward()
+	}
+	class MeanSquareLoss{}
+	class SoftmaxCrossEntropyLoss{}
+	Loss <-- MeanSquareLoss
+	Loss <-- SoftmaxCrossEntropyLoss
+}
+
+NeuralNetwork *-- Loss
+
+package layer.py{
+	abstract class Layer{
+		operations
+		forward()
+		backward()
+	}
+	class Dense{
+		neurons
+	}
+	Layer <- Dense
+}
+NeuralNetwork *-- Layer
+
+package operation.py{
+	abstract class Operation{
+		output()
+		input_grad()
+	}
+	abstract class ParamOperation{
+		param
+		param_grad()
+	}
+	ParamOperation -> Operation
+	class Sigmod{}
+	class Linear{}
+	class Tanh{}
+	Operation <-- Sigmod
+	Operation <-- Linear
+	Operation <-- Tanh
+	class WeightMultiply{}
+	class BiasAdd{}
+	ParamOperation <-- WeightMultiply
+	ParamOperation <-- BiasAdd
+}
+Layer *-- Operation
+Optimizer .... ParamOperation
+@enduml

@@ -39,6 +39,14 @@ class Linear(Operation):
         return output_grad
 
 
+class Tanh(Operation):
+    def _output(self) -> ndarray:
+        return np.tanh(self.input)
+
+    def _input_grad(self, output_grad: ndarray) -> ndarray:
+        return output_grad * (1 - self.output * self.output)
+
+
 class ParamOperation(Operation):
     def __init__(self, param: ndarray):
         self.param = param
